@@ -35,9 +35,9 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 if args.KITTI == '2015':
-   from dataloader import KITTI_submission_loader as DA
+    from dataloader import KITTI_submission_loader as DA
 else:
-   from dataloader import KITTI_submission_loader2012 as DA  
+    from dataloader import KITTI_submission_loader2012 as DA
 
 test_left_img, test_right_img = DA.dataloader(args.datapath)
 
@@ -57,23 +57,25 @@ if args.loadmodel is not None:
 
 print('Number of model parameters: {}'.format(sum([p.data.nelement() for p in model.parameters()])))
 
-def test(imgL,imgR):
+
+def test(imgL, imgR):
     model.eval()
 
     if args.cuda:
         imgL = imgL.cuda()
-        imgR = imgR.cuda()     
+        imgR = imgR.cuda()
 
     with torch.no_grad():
-        output = model(imgL,imgR)
+        output = model(imgL, imgR)
     output = torch.squeeze(output).data.cpu().numpy()
     return output
 
+
 def main():
     normal_mean_var = {'mean': [0.485, 0.456, 0.406],
-                        'std': [0.229, 0.224, 0.225]}
+                       'std': [0.229, 0.224, 0.225]}
     infer_transform = transforms.Compose([transforms.ToTensor(),
-                                            transforms.Normalize(**normal_mean_var)])    
+                                          transforms.Normalize(**normal_mean_var)])
 
     for inx in range(len(test_left_img)):
 
@@ -81,43 +83,37 @@ def main():
         imgR_o = Image.open(test_right_img[inx]).convert('RGB')
 
         imgL = infer_transform(imgL_o)
-        imgR = infer_transform(imgR_o)         
+        imgR = infer_transform(imgR_o)
 
         # pad to width and hight to 16 times
         if imgL.shape[1] % 16 != 0:
-            times = imgL.shape[1]//16       
-            top_pad = (times+1)*16 -imgL.shape[1]
+            times = imgL.shape[1] // 16
+            top_pad = (times + 1) * 16 - imgL.shape[1]
         else:
             top_pad = 0
 
         if imgL.shape[2] % 16 != 0:
-            times = imgL.shape[2]//16                       
-            right_pad = (times+1)*16-imgL.shape[2]
+            times = imgL.shape[2] // 16
+            right_pad = (times + 1) * 16 - imgL.shape[2]
         else:
-            right_pad = 0    
+            right_pad = 0
 
-        imgL = F.pad(imgL,(0,right_pad, top_pad,0)).unsqueeze(0)
-        imgR = F.pad(imgR,(0,right_pad, top_pad,0)).unsqueeze(0)
+        imgL = F.pad(imgL, (0, right_pad, top_pad, 0)).unsqueeze(0)
+        imgR = F.pad(imgR, (0, right_pad, top_pad, 0)).unsqueeze(0)
 
         start_time = time.time()
-        pred_disp = test(imgL,imgR)
-        print('time = %.2f' %(time.time() - start_time))
+        pred_disp = test(imgL, imgR)
+        print('time = %.2f' % (time.time() - start_time))
 
-        if top_pad !=0 or right_pad != 0:
-            img = pred_disp[top_pad:,:-right_pad]
+        if top_pad != 0 or right_pad != 0:
+            img = pred_disp[top_pad:, :-right_pad]
         else:
             img = pred_disp
 
-        img = (img*256).astype('uint16')
+        img = (img * 256).astype('uint16')
         img = Image.fromarray(img)
         img.save(test_left_img[inx].split('/')[-1])
 
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
